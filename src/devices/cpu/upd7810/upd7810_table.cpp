@@ -59,7 +59,7 @@ const struct upd7810_device::opcode_s upd7810_device::s_op48[256] =
 	{&upd7810_device::SLL_B,         2, 8, 8,L0|L1}, /* 26: 0100 1000 0010 0110                      */
 	{&upd7810_device::SLL_C,         2, 8, 8,L0|L1}, /* 27: 0100 1000 0010 0111                      */
 	{&upd7810_device::JEA,           2, 8, 8,L0|L1}, /* 28: 0100 1000 0010 1000                      */
-	{&upd7810_device::CALB,          2,17, 8,L0|L1}, /* 29: 0100 1000 0010 1001                      */
+	{&upd7810_device::CALB,          1,17, 8,L0|L1}, /* 29: 0100 1000 0010 1001                      */
 	{&upd7810_device::CLC,           2, 8, 8,L0|L1}, /* 2a: 0100 1000 0010 1010                      */
 	{&upd7810_device::STC,           2, 8, 8,L0|L1}, /* 2b: 0100 1000 0010 1011                      */
 	{&upd7810_device::illegal2,      2, 8, 8,L0|L1}, /* 2c: 0100 1000 0010 1100                      */
@@ -3663,7 +3663,7 @@ const struct upd7810_device::opcode_s upd7810_device::s_opXX_7801[256] =
 
 	/* 0x60 - 0x7F */
 	{&upd7810_device::PRE_60,        1, 0, 0,L0|L1}, {&upd7810_device::DAA,           1, 4, 4,L0|L1},
-	{&upd7810_device::RETI,          1,15,15,L0|L1}, {&upd7810_device::CALB,          2,13,13,L0|L1},
+	{&upd7810_device::RETI,          1,15,15,L0|L1}, {&upd7810_device::CALB,          1,13,13,L0|L1},
 	{&upd7810_device::PRE_64,        1, 0, 0,L0|L1}, {&upd7810_device::NEIW_wa_xx,    3,13,13,L0|L1},
 	{&upd7810_device::SUI_A_xx,      2, 7, 7,L0|L1}, {&upd7810_device::NEI_A_xx,      2, 7, 7,L0|L1},
 	{&upd7810_device::MVI_V_xx,      2, 7, 7,L0|L1}, {&upd7810_device::MVI_A_xx,      2, 7, 7,L0   },
@@ -4913,7 +4913,7 @@ const struct upd7810_device::opcode_s upd7810_device::s_opXX_78c05[256] =
 
 	/* 0x60 - 0x7F */
 	{&upd7810_device::PRE_60,        1, 0, 0,L0|L1}, {&upd7810_device::DAA,           1, 4, 4,L0|L1},
-	{&upd7810_device::RETI,          1,13,13,L0|L1}, {&upd7810_device::CALB,          2,13,13,L0|L1},
+	{&upd7810_device::RETI,          1,13,13,L0|L1}, {&upd7810_device::CALB,          1,13,13,L0|L1},
 	{&upd7810_device::PRE_64,        1, 0, 0,L0|L1}, {&upd7810_device::NEIW_wa_xx,    3,13,13,L0|L1},
 	{&upd7810_device::SUI_A_xx,      2, 7, 7,L0|L1}, {&upd7810_device::NEI_A_xx,      2, 7, 7,L0|L1},
 	{&upd7810_device::illegal,       1, 4, 4,L0|L1}, {&upd7810_device::MVI_A_xx,      2, 7, 7,L0   },
@@ -6164,7 +6164,7 @@ const struct upd7810_device::opcode_s upd7810_device::s_opXX_78c06[256] =
 
 	/* 0x60 - 0x7F */
 	{&upd7810_device::PRE_60,        1, 0, 0,L0|L1}, {&upd7810_device::DAA,           1, 6, 6,L0|L1},
-	{&upd7810_device::RETI,          1,15,15,L0|L1}, {&upd7810_device::CALB,          2,13,13,L0|L1},
+	{&upd7810_device::RETI,          1,15,15,L0|L1}, {&upd7810_device::CALB,          1,13,13,L0|L1},
 	{&upd7810_device::PRE_64,        1, 0, 0,L0|L1}, {&upd7810_device::NEIW_wa_xx,    3,19,19,L0|L1},
 	{&upd7810_device::SUI_A_xx,      2,11,11,L0|L1}, {&upd7810_device::NEI_A_xx,      2,11,11,L0|L1},
 	{&upd7810_device::illegal,       1, 6, 6,L0|L1}, {&upd7810_device::MVI_A_xx,      2,11,11,L0   },
