@@ -3548,7 +3548,9 @@ void upd7810_device::ONI_PA_xx()
 
 	RDOPARG( imm );
 	if (pa & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 49: 0110 0100 0100 1001 xxxx xxxx */
@@ -3558,7 +3560,9 @@ void upd7810_device::ONI_PB_xx()
 
 	RDOPARG( imm );
 	if (pb & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 4a: 0110 0100 0100 1010 xxxx xxxx */
@@ -3568,7 +3572,9 @@ void upd7810_device::ONI_PC_xx()
 
 	RDOPARG( imm );
 	if (pc & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 4b: 0110 0100 0100 1011 xxxx xxxx */
@@ -3578,7 +3584,9 @@ void upd7810_device::ONI_PD_xx()
 
 	RDOPARG( imm );
 	if (pd & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 4d: 0110 0100 0100 1101 xxxx xxxx */
@@ -3588,7 +3596,9 @@ void upd7810_device::ONI_PF_xx()
 
 	RDOPARG( imm );
 	if (pf & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 4e: 0110 0100 0100 1110 xxxx xxxx */
@@ -3598,7 +3608,9 @@ void upd7810_device::ONI_MKH_xx()
 
 	RDOPARG( imm );
 	if (MKH & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 4f: 0110 0100 0100 1111 xxxx xxxx */
@@ -3608,7 +3620,9 @@ void upd7810_device::ONI_MKL_xx()
 
 	RDOPARG( imm );
 	if (MKL & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 50: 0110 0100 0101 0000 xxxx xxxx */
@@ -3700,7 +3714,9 @@ void upd7810_device::OFFI_PA_xx()
 
 	RDOPARG( imm );
 	if (0 == (pa & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 59: 0110 0100 0101 1001 xxxx xxxx */
@@ -3710,7 +3726,9 @@ void upd7810_device::OFFI_PB_xx()
 
 	RDOPARG( imm );
 	if (0 == (pb & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 5a: 0110 0100 0101 1010 xxxx xxxx */
@@ -3720,7 +3738,9 @@ void upd7810_device::OFFI_PC_xx()
 
 	RDOPARG( imm );
 	if (0 == (pc & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 5b: 0110 0100 0101 1011 xxxx xxxx */
@@ -3730,7 +3750,9 @@ void upd7810_device::OFFI_PD_xx()
 
 	RDOPARG( imm );
 	if (0 == (pd & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 5d: 0110 0100 0101 1101 xxxx xxxx */
@@ -3740,7 +3762,9 @@ void upd7810_device::OFFI_PF_xx()
 
 	RDOPARG( imm );
 	if (0 == (pf & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 5e: 0110 0100 0101 1110 xxxx xxxx */
@@ -3750,7 +3774,9 @@ void upd7810_device::OFFI_MKH_xx()
 
 	RDOPARG( imm );
 	if (0 == (MKH & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 5f: 0110 0100 0101 1111 xxxx xxxx */
@@ -3760,7 +3786,9 @@ void upd7810_device::OFFI_MKL_xx()
 
 	RDOPARG( imm );
 	if (0 == (MKL & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 60: 0110 0100 0110 0000 xxxx xxxx */
@@ -4503,7 +4531,9 @@ void upd7810_device::ONI_ANM_xx()
 
 	RDOPARG( imm );
 	if (ANM & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 c9: 0110 0100 1100 1001 xxxx xxxx */
@@ -4513,7 +4543,9 @@ void upd7810_device::ONI_SMH_xx()
 
 	RDOPARG( imm );
 	if (SMH & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 cb: 0110 0100 1100 1011 xxxx xxxx */
@@ -4525,7 +4557,9 @@ void upd7810_device::ONI_EOM_xx()
 
 	RDOPARG( imm );
 	if (eom & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 cd: 0110 0100 1100 1101 xxxx xxxx */
@@ -4535,7 +4569,9 @@ void upd7810_device::ONI_TMM_xx()
 
 	RDOPARG( imm );
 	if (TMM & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 64 d0: 0110 0100 1101 0000 xxxx xxxx */
@@ -4596,7 +4632,9 @@ void upd7810_device::OFFI_ANM_xx()
 
 	RDOPARG( imm );
 	if (0 == (ANM & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 d9: 0110 0100 1101 1001 xxxx xxxx */
@@ -4606,7 +4644,9 @@ void upd7810_device::OFFI_SMH_xx()
 
 	RDOPARG( imm );
 	if (0 == (SMH & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 db: 0110 0100 1101 1011 xxxx xxxx */
@@ -4618,7 +4658,9 @@ void upd7810_device::OFFI_EOM_xx()
 
 	RDOPARG( imm );
 	if (0 == (eom & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 dd: 0110 0100 1101 1101 xxxx xxxx */
@@ -4628,7 +4670,9 @@ void upd7810_device::OFFI_TMM_xx()
 
 	RDOPARG( imm );
 	if (0 == (TMM & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 64 e0: 0110 0100 1110 0000 xxxx xxxx */
@@ -6763,7 +6807,9 @@ void upd7810_device::ONI_V_xx()
 
 	RDOPARG( imm );
 	if (V & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 74 49: 0111 0100 0100 1001 xxxx xxxx */
@@ -6773,7 +6819,9 @@ void upd7810_device::ONI_A_xx()
 
 	RDOPARG( imm );
 	if (A & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 74 4a: 0111 0100 0100 1010 xxxx xxxx */
@@ -6783,7 +6831,9 @@ void upd7810_device::ONI_B_xx()
 
 	RDOPARG( imm );
 	if (B & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 74 4b: 0111 0100 0100 1011 xxxx xxxx */
@@ -6793,7 +6843,9 @@ void upd7810_device::ONI_C_xx()
 
 	RDOPARG( imm );
 	if (C & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 74 4c: 0111 0100 0100 1100 xxxx xxxx */
@@ -6803,7 +6855,9 @@ void upd7810_device::ONI_D_xx()
 
 	RDOPARG( imm );
 	if (D & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 74 4d: 0111 0100 0100 1101 xxxx xxxx */
@@ -6813,7 +6867,9 @@ void upd7810_device::ONI_E_xx()
 
 	RDOPARG( imm );
 	if (E & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 74 4e: 0111 0100 0100 1110 xxxx xxxx */
@@ -6823,7 +6879,9 @@ void upd7810_device::ONI_H_xx()
 
 	RDOPARG( imm );
 	if (H & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 74 4f: 0111 0100 0100 1111 xxxx xxxx */
@@ -6833,7 +6891,9 @@ void upd7810_device::ONI_L_xx()
 
 	RDOPARG( imm );
 	if (L & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 74 50: 0111 0100 0101 0000 xxxx xxxx */
@@ -6931,7 +6991,9 @@ void upd7810_device::OFFI_V_xx()
 
 	RDOPARG( imm );
 	if (0 == (V & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 74 59: 0111 0100 0101 1001 xxxx xxxx */
@@ -6941,7 +7003,9 @@ void upd7810_device::OFFI_A_xx()
 
 	RDOPARG( imm );
 	if (0 == (A & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 74 5a: 0111 0100 0101 1010 xxxx xxxx */
@@ -6951,7 +7015,9 @@ void upd7810_device::OFFI_B_xx()
 
 	RDOPARG( imm );
 	if (0 == (B & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 74 5b: 0111 0100 0101 1011 xxxx xxxx */
@@ -6961,7 +7027,9 @@ void upd7810_device::OFFI_C_xx()
 
 	RDOPARG( imm );
 	if (0 == (C & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 74 5c: 0111 0100 0101 1100 xxxx xxxx */
@@ -6971,7 +7039,9 @@ void upd7810_device::OFFI_D_xx()
 
 	RDOPARG( imm );
 	if (0 == (D & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 74 5d: 0111 0100 0101 1101 xxxx xxxx */
@@ -6981,7 +7051,9 @@ void upd7810_device::OFFI_E_xx()
 
 	RDOPARG( imm );
 	if (0 == (E & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 74 5e: 0111 0100 0101 1110 xxxx xxxx */
@@ -6991,7 +7063,9 @@ void upd7810_device::OFFI_H_xx()
 
 	RDOPARG( imm );
 	if (0 == (H & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 74 5f: 0111 0100 0101 1111 xxxx xxxx */
@@ -7001,7 +7075,9 @@ void upd7810_device::OFFI_L_xx()
 
 	RDOPARG( imm );
 	if (0 == (L & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 74 60: 0111 0100 0110 0000 xxxx xxxx */
@@ -8422,7 +8498,9 @@ void upd7810_device::ONIW_wa_xx()
 	RDOPARG( imm );
 
 	if (RM( ea.d ) & imm)
-		PSW |= SK;
+		PSW = (PSW & ~Z) | SK;
+    else
+        PSW |= Z;
 }
 
 /* 46: 0100 0110 xxxx xxxx */
@@ -8555,7 +8633,9 @@ void upd7810_device::OFFIW_wa_xx()
 	RDOPARG( imm );
 
 	if (0 == (RM( ea.d ) & imm))
-		PSW |= SK;
+		PSW = PSW | Z | SK;
+	else
+		PSW &= ~Z;
 }
 
 /* 56: 0101 0110 xxxx xxxx */
