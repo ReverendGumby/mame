@@ -8261,13 +8261,8 @@ void upd7810_device::BLOCK()
 	DE++;
 	HL++;
 	C--;
-	if (C == 0xff)
-		PSW |= CY;
-	else
-	{
-		PSW &= ~CY;
+	if (C != 0xff)
 		PC--;
-	}
 }
 
 /* 32: 0011 0010 */
