@@ -17,6 +17,7 @@
 --------------------------------------------------
 
 CPUS["UPD7810"] = true
+CPUS["UPD177X"] = true
 
 --------------------------------------------------
 -- Specify all the sound cores necessary for the
