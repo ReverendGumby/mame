@@ -37,6 +37,15 @@ protected:
 		// Bits 8-9 set NS interrupt rate
 	};
 
+	// IRR flags
+	enum
+	{
+		INT_TONE = 1 << 0,
+		INT_NS   = 1 << 1,
+		INT_EXT  = 1 << 2,
+		INT_TIME = 1 << 3,
+	};
+
 	upd1771c_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	// internal memory maps
@@ -61,6 +70,9 @@ protected:
 	// device_disasm_interface overrides
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
+	void handle_timers(int cycles);
+	void take_irq();
+
 	devcb_read8       m_pb_in_cb;
 	devcb_write8      m_pb_out_cb;
 
@@ -75,12 +87,14 @@ protected:
 
 	PAIR m_ppc;							// previous program counter
 	PAIR m_pc;							// program counter
-	u8 m_a;								// Accumulator
+	u8 m_a;								// Accumulator (A)
+	u8 m_a_shadow;						// A' (interrupt save slot)
 	u8 m_h;								// Data Pointer, 6 bits
 	u8 m_sp;							// stack pointer, 3 bits
 	u8 m_x;								// X Multiplier, 7 bits
 	u8 m_y;								// Y Multiplier, 5 bits
 	bool m_sk;							// skip flag
+	bool m_sk_shadow;					// shadow skip flag (interrupt save slot)
 	bool m_ts;							// Tone Sign (TS)
 	bool m_ns;							// Noise Sign (NS)
 	bool m_ss;							// Sample Sign (SS) = DAC out neg (-)
@@ -98,7 +112,18 @@ protected:
     // 16-bit data is stored little-endian.
 	u8 m_r[64];							// SRAM
 
+	u8 m_nc;							// "NC": Down-counter
+	bool m_nc_uf;						// NC underflow
 	u8 m_n;								// "N": Reload value for NC
+	u8 m_nuc;							// NC relaod / tone counter, 3 bits
+	bool m_int_tone_cond;				// tone int. condition
+	bool m_int_tone_trig;				// tone int. trigger
+
+	int m_cycles;						// TODO TEMP
+	u8 m_int_pending;					// pending interrupt requests
+	u8 m_int_active;					// active interrupt
+	u8 m_int_clr_active;				// clear active interrupt
+	u16 m_irq_vec;						// interrupt vector
 
 	memory_access<12, 1, -1, ENDIANNESS_LITTLE>::cache m_opcodes;
 	memory_access<12, 1, -1, ENDIANNESS_LITTLE>::specific m_program;
@@ -122,6 +147,7 @@ protected:
 	void JMP_n12(u16 op);
 	void CALL(u16 op);
 	void RET(u16 op);
+	void RETI(u16 op);
 	void NOP(u16 op);
 	void ADI_Rr(u16 op);
 	void ADIS_Rr(u16 op);

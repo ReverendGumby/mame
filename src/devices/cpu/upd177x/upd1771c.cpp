@@ -66,6 +66,60 @@ void upd1771c_device::pa_w(u8 data)
     logerror("pa_w(%02x)\n", data);
 }
 
+void upd1771c_device::handle_timers(int cycles)
+{
+    // NC down-counter, tone counter
+    for (int i = 0; i < cycles; i++)
+    {
+        // NC decrementes every cycle. When NC reaches 1, it resets to N and
+        // sets the underflow flag.
+        bool nc_uf = false;
+        if (m_nc != 1)
+            m_nc --;
+        else
+        {
+            nc_uf = true;
+            m_nc = m_n;
+        }
+
+        // One cycle after the underflow flag is set, nuc (NC underflow counter)
+        // goes up.
+        if (m_nc_uf)
+        {
+            if (++m_nuc == 8)
+                m_nuc = 0;
+            logerror("%05d: m_nc=%d m_nuc=%d\n", m_cycles, m_nc, m_nuc);
+        }
+
+        // N controls the tone interrupt condition.
+        bool int_tone_cond;
+        if (m_n < 0x08)
+            int_tone_cond = false;
+        else if (m_n < 0x10)
+            int_tone_cond = m_nuc & (1 << 2);
+        else if (m_n < 0x20)
+            int_tone_cond = m_nuc & (1 << 1);
+        else if (m_n < 0x40)
+            int_tone_cond = m_nuc & (1 << 0);
+        else
+            int_tone_cond = m_nc_uf;
+
+        // Interrupt is triggered one cycle after int_tone_cond negedge.
+        if (m_int_tone_trig)
+        {
+            if ((m_md & MD_TONE_IE) && !(m_int_active & INT_TONE))
+            {
+                m_int_pending |= INT_TONE;
+                logerror("%05d: irr |= INT_TONE\n", m_cycles);
+            }
+        }
+        m_int_tone_trig = !int_tone_cond && m_int_tone_cond;
+
+        m_int_tone_cond = int_tone_cond;
+        m_nc_uf = nc_uf;
+    }
+}
+
 void upd1771c_device::device_start()
 {
     init_ops();
@@ -82,45 +136,116 @@ void upd1771c_device::device_start()
 
 void upd1771c_device::device_reset()
 {
-    m_ma = 0xff;                    // PA[7:0] are inputs
-    m_mb = 0xf8;                    // PB[7:3] are inputs, PB[2:0] are outputs
-
     m_ppc.d = 0;
     m_pc.d = 0;
     m_sp = 0;
     m_sk = false;
     m_ns = false;
     m_md = MD_IF;
+
+    m_ma = 0xff;                    // PA[7:0] are inputs
+    m_mb = 0xf8;                    // PB[7:3] are inputs, PB[2:0] are outputs
     m_pa_in = 0;
     m_pb_in = 0;
     m_pa_out = 0;
     m_pb_out = 0;
+
+    m_nc = 0;
+    m_nc_uf = false;
+    m_nuc = 0;
+    m_int_tone_cond = false;
+    m_int_tone_trig = false;
+
+    m_int_pending = 0;
+    m_int_active = 0;
+    m_int_clr_active = 0;
+    m_irq_vec = 0;
+    m_cycles = 0;                       // TODO
 }
 
 void upd1771c_device::execute_run()
 {
     do
     {
+		take_irq();
+
 		m_ppc = m_pc;
 		debugger_instruction_hook(m_pc.w.l);
 
         u16 op = m_opcodes.read_word(m_pc.w.l);
         m_pc.d ++;
 
+        if (m_irq_vec)
+        {
+            op = 0x7000 | m_irq_vec;  // CALL opcode
+            logerror("%05d: IRQ = CALL %03x\n", m_cycles, m_irq_vec);
+            m_irq_vec = 0;
+            m_sk = false;
+            m_pc.d --;                  // RETI to the ins. replaced by CALL
+        }
 		/* skip flag set? */
-        //logerror("PC:%04x: sk=%d\n", m_ppc.w.l, m_sk);
         if (m_sk)
         {
             op = 0x0000; // NOP
             m_sk = false;
         }
         int cc = op_cycles(op);
-        //handle_timers( cc ); TODO
+        handle_timers(cc);
         (this->*m_op_funcs[op])(op);
 
         m_icount -= cc;
-		//take_irq(); TODO
+        m_cycles += cc;
 	} while (m_icount > 0);
+}
+
+void upd1771c_device::take_irq()
+{
+    // Clear active interrupt in the cycle after RETI.
+    m_int_active &= ~m_int_clr_active;
+
+    if (!m_int_pending)
+        return;                         // no pending interrupt
+
+    // Select highest priority pending interrupt, make it active
+    if (m_int_pending & INT_TONE)
+        m_int_active = INT_TONE;
+    else if (m_int_pending & INT_NS)
+        m_int_active = INT_NS;
+    else if (m_int_pending & INT_EXT)
+        m_int_active = INT_EXT;
+    else if (m_int_pending & INT_TIME)
+        m_int_active = INT_TIME;
+    m_int_pending &= ~m_int_active;     // clear pending request
+
+    // Compute interrupt vector
+    switch (m_int_active)
+    {
+    case INT_TONE:
+        m_irq_vec = 0x20;
+        if (m_n >= 0x10 && m_n < 0x20)
+            m_irq_vec |= 0x04;
+        if (m_n >= 0x20 && m_n < 0x40)
+            m_irq_vec |= 0x08;
+        if (m_n >= 0x40)
+            m_irq_vec |= 0x0c;
+        break;
+    case INT_NS:
+        m_irq_vec = 0x48;
+        break;
+    case INT_EXT:
+        m_irq_vec = 0x60;
+        break;
+    case INT_TIME:
+        m_irq_vec = 0x80;
+        break;
+    }
+
+    // Copy accumulator and skip flag to shadow registers
+    m_sk_shadow = m_sk;
+    m_a_shadow = m_a;
+
+    // The next instruction is still fetched, but effectively replaced with a
+    // CALL to the interrupt vector.
 }
 
 /***********************************************************************
@@ -179,7 +304,7 @@ void upd1771c_device::init_ops()
 
         { 0x0800, 0xffff, &upd1771c_device::RET },
 //      { 0x0801, 0xffff, &upd1771c_device::RETS },
-//      { 0x090f, 0xffff, &upd1771c_device::RETI },
+        { 0x090f, 0xffff, &upd1771c_device::RETI },
 
 //      { 0x0005, 0xffff, &upd1771c_device::STF },
 //      { 0x0602, 0xffff, &upd1771c_device::OFF },
@@ -489,6 +614,14 @@ void upd1771c_device::RET(u16 op)       // 0000 1000 0000 0000
     u8 rs = m_sp * 2 + 0x20;
     m_pc.b.l = m_r[rs + 0];
     m_pc.b.h = m_r[rs + 1];
+}
+
+void upd1771c_device::RETI(u16 op)      // 0000 1001 0000 1111
+{
+    RET(op);
+    m_sk = m_sk_shadow;
+    m_a = m_a_shadow;
+    m_int_clr_active = m_int_active;
 }
 
 void upd1771c_device::ADI_Rr(u16 op)    // 1110 000r rrrr nnnn
