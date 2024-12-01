@@ -18,6 +18,20 @@ public:
 	upd1771c_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
+	// Mode (md) flags
+	enum
+	{
+		MD_64_32   = 1 << 0,
+		MD_TONE_IE = 1 << 1,
+		MD_NS_IE   = 1 << 2,
+		MD_NSS     = 1 << 3,
+		MD_TIME_IE = 1 << 4,
+		MD_EXT_IE  = 1 << 5,
+		MD_OUT     = 1 << 6,
+		MD_IF      = 1 << 7,
+		// Bits 8-9 set NS interrupt rate
+	};
+
 	upd1771c_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	// internal memory maps
@@ -51,18 +65,139 @@ protected:
 	address_space_config m_program_config;
 	memory_view m_ram_view;
 
-	u16 m_ppc;							// previous program counter
-	u16 m_pc;							// program counter
-	u8 m_sp;							// stack pointer
+	PAIR m_ppc;							// previous program counter
+	PAIR m_pc;							// program counter
+	u8 m_a;								// Accumulator
+	u8 m_h;								// Data Pointer, 6 bits
+	u8 m_sp;							// stack pointer, 3 bits
+	u8 m_x;								// X Multiplier, 7 bits
+	u8 m_y;								// Y Multiplier, 5 bits
 	bool m_sk;							// skip flag
+	bool m_ts;							// Tone Sign (TS)
+	bool m_ns;							// Noise Sign (NS)
+	bool m_ss;							// Sample Sign (SS) = DAC out neg (-)
+	u16 m_md;							// Mode flags
+
+	// 64-byte internal SRAM. Supports both 8- and 16-bit accesses.
+	// Used for direct Rr access, indirect (H) access, and stack (PC).
+    // 16-bit data is stored little-endian.
+	u8 m_r[64];							// SRAM
+
+	u8 m_n;								// "N": Reload value for NC
 
 	memory_access<12, 1, -1, ENDIANNESS_LITTLE>::cache m_opcodes;
 	memory_access<12, 1, -1, ENDIANNESS_LITTLE>::specific m_program;
 	int m_icount;
 
 	void illegal(u16 op);
-	void NOP(u16 op);
 	void MVI_Rr(u16 op);
+	void MVI_Hp(u16 op);
+	void MVI_A(u16 op);
+	void MVI_H(u16 op);
+	void MVI_MD1(u16 op);
+	void MVI_MD0(u16 op);
+	void MOV_Rr_A(u16 op);
+	void MOV_A_Rr(u16 op);
+	void IN_PA(u16 op);
+	void IN_PB(u16 op);
+	void OUT_PA(u16 op);
+	void OUT_PB(u16 op);
+	void OUT_DA(u16 op);
+	void MIX(u16 op);
+	void JMP_n12(u16 op);
+	void CALL(u16 op);
+	void RET(u16 op);
+	void NOP(u16 op);
+	void ADI_Rr(u16 op);
+	void ADIS_Rr(u16 op);
+	void SBI_Rr(u16 op);
+	void SBIS_Rr(u16 op);
+	void TADINC_Rr(u16 op);
+	void TADIC_Rr(u16 op);
+	void TSBINC_Rr(u16 op);
+	void TSBIC_Rr(u16 op);
+	void ADI_A(u16 op);
+	void ANDI_A(u16 op);
+	void SBI_A(u16 op);
+	void ORI_A(u16 op);
+	void ADIS_A(u16 op);
+	void ANDIS_A(u16 op);
+	void SBIS_A(u16 op);
+	void XORI_A(u16 op);
+	void TADINC_A(u16 op);
+	void TANDINZ_A(u16 op);
+	void TSBINC_A(u16 op);
+	void TSBINZ_A(u16 op);
+	void TADIC_A(u16 op);
+	void TANDIZ_A(u16 op);
+	void TSBIC_A(u16 op);
+	void TSBIZ_A(u16 op);
+	void ADI_Hp(u16 op);
+	void ANDI_Hp(u16 op);
+	void SBI_Hp(u16 op);
+	void ORI_Hp(u16 op);
+	void ADIS_Hp(u16 op);
+	void ANDIS_Hp(u16 op);
+	void SBIS_Hp(u16 op);
+	void XORI_Hp(u16 op);
+	void TADINC_Hp(u16 op);
+	void TANDINZ_Hp(u16 op);
+	void TSBINC_Hp(u16 op);
+	void TSBINZ_Hp(u16 op);
+	void TADIC_Hp(u16 op);
+	void TANDIZ_Hp(u16 op);
+	void TSBIC_Hp(u16 op);
+	void TSBIZ_Hp(u16 op);
+	void ADI_H(u16 op);
+	void ANDI_H(u16 op);
+	void SBI_H(u16 op);
+	void ORI_H(u16 op);
+	void ADIS_H(u16 op);
+	void ANDIS_H(u16 op);
+	void SBIS_H(u16 op);
+	void XORI_H(u16 op);
+	void TADINC_H(u16 op);
+	void TANDINZ_H(u16 op);
+	void TSBINC_H(u16 op);
+	void TSBINZ_H(u16 op);
+	void TADIC_H(u16 op);
+	void TANDIZ_H(u16 op);
+	void TSBIC_H(u16 op);
+	void TSBIZ_H(u16 op);
+	void MOV_N_A(u16 op);
+	void MOV_Hp_A(u16 op);
+	void AD_A_Rr(u16 op);
+	void AND_A_Rr(u16 op);
+	void SB_A_Rr(u16 op);
+	void OR_A_Rr(u16 op);
+	void ADS_A_Rr(u16 op);
+	void ANDS_A_Rr(u16 op);
+	void SBS_A_Rr(u16 op);
+	void XOR_A_Rr(u16 op);
+	void TADNC_A_Rr(u16 op);
+	void TANDNZ_A_Rr(u16 op);
+	void TSBNC_A_Rr(u16 op);
+	void TSBNZ_A_Rr(u16 op);
+	void TADC_A_Rr(u16 op);
+	void TANDZ_A_Rr(u16 op);
+	void TSBC_A_Rr(u16 op);
+	void TSBZ_A_Rr(u16 op);
+	void AD_Rr_A(u16 op);
+	void AND_Rr_A(u16 op);
+	void SB_Rr_A(u16 op);
+	void OR_Rr_A(u16 op);
+	void ADS_Rr_A(u16 op);
+	void ANDS_Rr_A(u16 op);
+	void SBS_Rr_A(u16 op);
+	void XOR_Rr_A(u16 op);
+	void TADNC_Rr_A(u16 op);
+	void TANDNZ_Rr_A(u16 op);
+	void TSBNC_Rr_A(u16 op);
+	void TSBNZ_Rr_A(u16 op);
+	void TADC_Rr_A(u16 op);
+	void TANDZ_Rr_A(u16 op);
+	void TSBC_Rr_A(u16 op);
+	void TSBZ_Rr_A(u16 op);
 };
 
 
