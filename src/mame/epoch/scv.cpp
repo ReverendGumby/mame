@@ -89,7 +89,7 @@ void scv_state::scv_mem(address_map &map)
 	map(0x0000, 0x0fff).rom();   // BIOS
 
 	map(0x2000, 0x3403).ram().share(m_videoram);  // VRAM + 4 registers
-	//map(0x3600, 0x3600).w(m_upd1771c, FUNC(upd1771c_device::write));
+	map(0x3600, 0x3600).w(m_upd1771c, FUNC(upd1771c_device::pa_w));
 
 	// 8000 - ff7f - Cartridge
 	// ff80 - ffff - CPU internal RAM
@@ -562,6 +562,10 @@ void scv_state::scv(machine_config &config)
 	SPEAKER(config, "mono").front_center();
 	UPD1771C(config, m_upd1771c, 6_MHz_XTAL);
 	//m_upd1771c->ack_handler().set([this] (int state) { m_maincpu->set_input_line(UPD7810_INTF1, (state) ? ASSERT_LINE : CLEAR_LINE); });
+    m_upd1771c->pb_out_cb().set([this] (u8 data) {
+        bool pb0 = data & (1 << 0);
+        m_maincpu->set_input_line(UPD7810_INTF1, (pb0) ? ASSERT_LINE : CLEAR_LINE);
+    });
 	//m_upd1771c->add_route(ALL_OUTPUTS, "mono", 1.00);
 
 	SCV_CART_SLOT(config, m_cart, scv_cart, nullptr);

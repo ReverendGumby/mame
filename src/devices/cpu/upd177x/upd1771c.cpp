@@ -11,6 +11,8 @@
  *  - http://reverendgumby.gitlab.io/visuald1771c - JavaScript simulator derived from above die shot
  *  - https://gitlab.com/ReverendGumby/SuperCassetteVision_MiSTer/-/blob/main/rtl/scv/upd1771c/upd1771c.sv - Verilog emulation
  *
+ *  This driver emulates 'slave' mode only.
+ *
  *****************************************************************************/
 /*
   (TODO: Copy upd1771c_017.cpp docs here)
@@ -32,6 +34,8 @@ upd1771c_device::upd1771c_device(const machine_config &mconfig, const char *tag,
 
 upd1771c_device::upd1771c_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
 	: cpu_device(mconfig, type, tag, owner, clock)
+	, m_pb_in_cb(*this, 0xff)
+	, m_pb_out_cb(*this)
 	, m_program_config("program", ENDIANNESS_LITTLE, 16, 12, -1, address_map_constructor(FUNC(upd1771c_device::internal_512x16), this))
 	, m_ram_view(*this, "ram_view")
 {
@@ -54,6 +58,14 @@ std::unique_ptr<util::disasm_interface> upd1771c_device::create_disassembler()
 	return std::make_unique<upd177x_disassembler>();
 }
 
+void upd1771c_device::pa_w(u8 data)
+{
+    // Emulate external writes at a high level. Simpler than modelling wiring
+    // CE/RD to PB6-7 and the data bus to PA.
+    m_pa_in = data;
+    logerror("pa_w(%02x)\n", data);
+}
+
 void upd1771c_device::device_start()
 {
     init_ops();
@@ -70,12 +82,19 @@ void upd1771c_device::device_start()
 
 void upd1771c_device::device_reset()
 {
+    m_ma = 0xff;                    // PA[7:0] are inputs
+    m_mb = 0xf8;                    // PB[7:3] are inputs, PB[2:0] are outputs
+
     m_ppc.d = 0;
     m_pc.d = 0;
     m_sp = 0;
     m_sk = false;
     m_ns = false;
     m_md = MD_IF;
+    m_pa_in = 0;
+    m_pb_in = 0;
+    m_pa_out = 0;
+    m_pb_out = 0;
 }
 
 void upd1771c_device::execute_run()
@@ -406,24 +425,31 @@ void upd1771c_device::MOV_A_Rr(u16 op)  // 0001 000r rrrr 0101
 
 void upd1771c_device::IN_PA(u16 op)     // 0000 0100 0000 0001
 {
-    // TODO
-    m_a = 0;
+    m_a = (m_pa_in & m_ma) | (m_pa_out & ~m_ma);
 }
 
 void upd1771c_device::IN_PB(u16 op)     // 0000 0100 0000 0010
 {
-    // TODO
-    m_a = 0;
+    if (m_mb && !m_pb_in_cb.isunset())
+        m_pb_in = m_pb_in_cb(0, m_mb);
+    m_a = (m_pb_in & m_mb) | (m_pb_out & ~m_mb);
 }
 
 void upd1771c_device::OUT_PA(u16 op)    // 0000 0000 0000 0010
 {
-    // TODO
+    u8 data = m_a;
+    m_pa_out = data;
+    //data = (data & ~m_ma) | m_ma;
+    //m_pa_out_cb(data);
 }
 
 void upd1771c_device::OUT_PB(u16 op)    // 0000 0000 0000 0100
 {
-    // TODO
+    u8 data = m_a;
+    m_pb_out = data;
+    data = (data & ~m_mb) | m_mb;
+    m_pb_out_cb(data);
+    logerror("OUT_PB: %02x\n", data);
 }
 
 void upd1771c_device::OUT_DA(u16 op)    // 0000 0101 0000 0010

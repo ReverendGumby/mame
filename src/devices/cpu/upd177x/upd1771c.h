@@ -17,6 +17,11 @@ public:
 	// construction/destruction
 	upd1771c_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+	// configuration helpers
+	auto pb_out_cb() { return m_pb_out_cb.bind(); }
+
+	void pa_w(u8 data);
+
 protected:
 	// Mode (md) flags
 	enum
@@ -56,6 +61,9 @@ protected:
 	// device_disasm_interface overrides
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
+	devcb_read8       m_pb_in_cb;
+	devcb_write8      m_pb_out_cb;
+
 	void init_ops();
 	int op_cycles(u16 op);
 
@@ -77,6 +85,13 @@ protected:
 	bool m_ns;							// Noise Sign (NS)
 	bool m_ss;							// Sample Sign (SS) = DAC out neg (-)
 	u16 m_md;							// Mode flags
+
+	u8 m_ma;							// port A input or output mask
+	u8 m_mb;							// port B input or output mask
+	u8 m_pa_in;							// port A,B inputs
+	u8 m_pb_in;
+	u8 m_pa_out;						// port A,B outputs
+	u8 m_pb_out;
 
 	// 64-byte internal SRAM. Supports both 8- and 16-bit accesses.
 	// Used for direct Rr access, indirect (H) access, and stack (PC).
