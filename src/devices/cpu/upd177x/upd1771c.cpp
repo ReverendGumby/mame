@@ -34,10 +34,11 @@ upd1771c_device::upd1771c_device(const machine_config &mconfig, const char *tag,
 
 upd1771c_device::upd1771c_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
 	: cpu_device(mconfig, type, tag, owner, clock)
-	, m_pb_in_cb(*this, 0xff)
+	, device_sound_interface(mconfig, *this)
 	, m_pb_out_cb(*this)
 	, m_program_config("program", ENDIANNESS_LITTLE, 16, 12, -1, address_map_constructor(FUNC(upd1771c_device::internal_512x16), this))
 	, m_ram_view(*this, "ram_view")
+    , m_stream(nullptr)
 {
 }
 
@@ -62,8 +63,8 @@ void upd1771c_device::pa_w(u8 data)
 {
     // Emulate external writes at a high level. Simpler than modelling wiring
     // CE/RD to PB6-7 and the data bus to PA.
-    m_pa_in = data;
-    logerror("pa_w(%02x)\n", data);
+    //logerror("pa_w(%02x)\n", data);
+    m_pa_io = data;
 }
 
 void upd1771c_device::handle_timers(int cycles)
@@ -88,7 +89,6 @@ void upd1771c_device::handle_timers(int cycles)
         {
             if (++m_nuc == 8)
                 m_nuc = 0;
-            logerror("%05d: m_nc=%d m_nuc=%d\n", m_cycles, m_nc, m_nuc);
         }
 
         // N controls the tone interrupt condition.
@@ -110,7 +110,6 @@ void upd1771c_device::handle_timers(int cycles)
             if ((m_md & MD_TONE_IE) && !(m_int_active & INT_TONE))
             {
                 m_int_pending |= INT_TONE;
-                logerror("%05d: irr |= INT_TONE\n", m_cycles);
             }
         }
         m_int_tone_trig = !int_tone_cond && m_int_tone_cond;
@@ -124,18 +123,24 @@ void upd1771c_device::device_start()
 {
     init_ops();
 
+	// large stream buffer to favour emu/sound.cpp resample quality
+	m_stream = stream_alloc(0, 1, 48000 * 32);
+
 	space(AS_PROGRAM).specific(m_program);
 	space(AS_PROGRAM).cache(m_opcodes);
 
 	set_icountptr(m_icount);
 
 	state_add(UPD1771C_PC,  "PC",   m_pc.w.l).formatstr("%04X");
+    // TODO: more state
 
 	save_item(NAME(m_pc.w.l));
+    // TODO: move save
 }
 
 void upd1771c_device::device_reset()
 {
+    m_cycles = 0;
     m_ppc.d = 0;
     m_pc.d = 0;
     m_sp = 0;
@@ -145,10 +150,8 @@ void upd1771c_device::device_reset()
 
     m_ma = 0xff;                    // PA[7:0] are inputs
     m_mb = 0xf8;                    // PB[7:3] are inputs, PB[2:0] are outputs
-    m_pa_in = 0;
-    m_pb_in = 0;
-    m_pa_out = 0;
-    m_pb_out = 0;
+    m_pa_io = 0;
+    m_pb_io = 0;
 
     m_nc = 0;
     m_nc_uf = false;
@@ -160,7 +163,9 @@ void upd1771c_device::device_reset()
     m_int_active = 0;
     m_int_clr_active = 0;
     m_irq_vec = 0;
-    m_cycles = 0;                       // TODO
+
+    m_dac_pcm = 0;
+    m_dac_neg = false;
 }
 
 void upd1771c_device::execute_run()
@@ -178,7 +183,6 @@ void upd1771c_device::execute_run()
         if (m_irq_vec)
         {
             op = 0x7000 | m_irq_vec;  // CALL opcode
-            logerror("%05d: IRQ = CALL %03x\n", m_cycles, m_irq_vec);
             m_irq_vec = 0;
             m_sk = false;
             m_pc.d --;                  // RETI to the ins. replaced by CALL
@@ -249,11 +253,27 @@ void upd1771c_device::take_irq()
 }
 
 /***********************************************************************
+ * sound stream updates
+ ***********************************************************************/
+
+void upd1771c_device::sound_stream_update(sound_stream &stream, std::vector<read_stream_view> const &inputs, std::vector<write_stream_view> &outputs)
+{
+    stream_buffer::sample_t curval;
+    curval = m_dac_pcm / 255.0;
+    if (m_dac_neg)
+        curval = -curval;
+
+	auto &out = outputs[0];
+    out.fill(curval);
+}
+
+/***********************************************************************
  * opcodes
  ***********************************************************************/
 
 void upd1771c_device::init_ops()
 {
+    // Note: Only opcodes used in ROM mask -017 are implemented.
     static const struct {
         u16 code;
         u16 mask;
@@ -273,11 +293,11 @@ void upd1771c_device::init_ops()
 //      { 0x1202, 0xfe0f, &upd1771c_device::MOV_Rr_Hp },
 //      { 0x100a, 0xfe0f, &upd1771c_device::MOV_Hp_Rr },
 //      { 0x120a, 0xfe0f, &upd1771c_device::XCHG_Rr_A },
-//      { 0x1000, 0xfe0f, &upd1771c_device::MOV_Y_Rr },
-//      { 0x0008, 0xffff, &upd1771c_device::MOV_X_RG },
+        { 0x1000, 0xfe0f, &upd1771c_device::MOV_Y_Rr },
+        { 0x0008, 0xffff, &upd1771c_device::MOV_X_RG },
 
-//      { 0x0404, 0xffff, &upd1771c_device::RAR },
-//      { 0x0408, 0xffff, &upd1771c_device::RAL },
+        { 0x0404, 0xffff, &upd1771c_device::RAR },
+        { 0x0408, 0xffff, &upd1771c_device::RAL },
 
         { 0x0401, 0xffff, &upd1771c_device::IN_PA },
         { 0x0402, 0xffff, &upd1771c_device::IN_PB },
@@ -286,12 +306,12 @@ void upd1771c_device::init_ops()
         { 0x0502, 0xffff, &upd1771c_device::OUT_DA },
 
 //      { 0x0504, 0xffff, &upd1771c_device::MUL1 },
-//      { 0x050c, 0xffff, &upd1771c_device::MUL2 },
+        { 0x050c, 0xffff, &upd1771c_device::MUL2 },
 
         { 0x1409, 0xfe0f, &upd1771c_device::MIX },
 
-//      { 0x1801, 0xfe0f, &upd1771c_device::TBL0_A },
-//      { 0x1802, 0xfe0f, &upd1771c_device::TBL0_X },
+        { 0x1801, 0xfe0f, &upd1771c_device::TBL0_A },
+        { 0x1802, 0xfe0f, &upd1771c_device::TBL0_X },
 //      { 0x1804, 0xfe0f, &upd1771c_device::TBL0_Y },
 //      { 0x1808, 0xfe0f, &upd1771c_device::CALL0 },
 
@@ -319,7 +339,7 @@ void upd1771c_device::init_ops()
         { 0xec00, 0xfe00, &upd1771c_device::TSBINC_Rr },
         { 0xee00, 0xfe00, &upd1771c_device::TSBIC_Rr },
 //      { 0xf000, 0xfe00, &upd1771c_device::ADI5_Rr },
-//      { 0xf200, 0xfe00, &upd1771c_device::ADIMS_Rr },
+        { 0xf200, 0xfe00, &upd1771c_device::ADIMS_Rr },
 //      { 0xf800, 0xfe00, &upd1771c_device::TADI5_Rr },
 
         { 0x8000, 0xff00, &upd1771c_device::ADI_A },
@@ -391,7 +411,7 @@ void upd1771c_device::init_ops()
         { 0xbf00, 0xffc0, &upd1771c_device::TSBIZ_H },
 
         { 0x0201, 0xffff, &upd1771c_device::MOV_N_A },
-//      { 0x0208, 0xffff, &upd1771c_device::MOV_X_A },
+        { 0x0208, 0xffff, &upd1771c_device::MOV_X_A },
         { 0x1601, 0xffff, &upd1771c_device::MOV_Hp_A },
 //      { 0x1405, 0xffff, &upd1771c_device::MOV_A_Hp },
 //      { 0x1605, 0xffff, &upd1771c_device::XCHG_Hp_A },
@@ -548,22 +568,42 @@ void upd1771c_device::MOV_A_Rr(u16 op)  // 0001 000r rrrr 0101
     m_a = m_r[r];
 }
 
+void upd1771c_device::MOV_Y_Rr(u16 op)  // 0001 000r rrrr 0000
+{
+    u8 r = (op >> 4) & 0x1f;
+    m_y = m_r[r] & 0x1f;
+}
+
+void upd1771c_device::MOV_X_RG(u16 op)  // 0000 0000 0000 1000
+{
+    // TODO: Implement RG
+}
+
+void upd1771c_device::RAR(u16 op)       // 0000 0100 0000 0100
+{
+    m_a = (m_a >> 1) | ((m_a << 7) & 0x80);
+}
+
+void upd1771c_device::RAL(u16 op)       // 0000 0100 0000 1000
+{
+    m_a = (m_a << 1) | ((m_a >> 7) & 0x01);
+}
+
 void upd1771c_device::IN_PA(u16 op)     // 0000 0100 0000 0001
 {
-    m_a = (m_pa_in & m_ma) | (m_pa_out & ~m_ma);
+    m_a = m_pa_io;
 }
 
 void upd1771c_device::IN_PB(u16 op)     // 0000 0100 0000 0010
 {
-    if (m_mb && !m_pb_in_cb.isunset())
-        m_pb_in = m_pb_in_cb(0, m_mb);
-    m_a = (m_pb_in & m_mb) | (m_pb_out & ~m_mb);
+    m_a = m_pb_io;
 }
 
 void upd1771c_device::OUT_PA(u16 op)    // 0000 0000 0000 0010
 {
     u8 data = m_a;
-    m_pa_out = data;
+    //logerror("OUT_PA(%02x)\n", data);
+    m_pa_io = data;
     //data = (data & ~m_ma) | m_ma;
     //m_pa_out_cb(data);
 }
@@ -571,15 +611,31 @@ void upd1771c_device::OUT_PA(u16 op)    // 0000 0000 0000 0010
 void upd1771c_device::OUT_PB(u16 op)    // 0000 0000 0000 0100
 {
     u8 data = m_a;
-    m_pb_out = data;
+    m_pb_io = data;
     data = (data & ~m_mb) | m_mb;
     m_pb_out_cb(data);
-    logerror("OUT_PB: %02x\n", data);
+    //logerror("OUT_PB: %02x\n", data);
 }
 
 void upd1771c_device::OUT_DA(u16 op)    // 0000 0101 0000 0010
 {
-    // TODO
+    m_stream->update();
+
+    m_dac_pcm = m_a;
+    if (m_ss ^ m_ts)                    // invert sample input to DAC
+        m_dac_pcm = ~m_dac_pcm;
+    m_dac_neg = m_ss;                   // DAC out neg (-)
+    //logerror("OUT_DA: %c%02x\n", m_dac_neg ? '-' : '+', m_dac_pcm);
+}
+
+void upd1771c_device::MUL2(u16 op)      // 0000 0101 0000 1100
+{
+    if (m_y & 1)
+    {
+        m_a += m_x;
+    }
+    m_a >>= 1;
+    m_y >>= 1;
 }
 
 void upd1771c_device::MIX(u16 op)       // 0001 010r rrrr 1001
@@ -589,6 +645,31 @@ void upd1771c_device::MIX(u16 op)       // 0001 010r rrrr 1001
     u16 tmp = (m_ts == m_ns) ? rr + m_a : rr - m_a;
     m_ss = m_ts ^ (tmp > 0xff);
     m_a = tmp;
+}
+
+void upd1771c_device::TBL0_A(u16 op)    // 0001 100r rrrr 0010
+{
+    u8 r = (op >> 4) & 0x1f;
+    PAIR prr;
+    prr.b.l = m_r[r + 0];
+    prr.b.h = m_r[r + 1];
+    PAIR pw;
+    pw.d = m_program.read_word(prr.w.l >> 1);
+    u8 data = (prr.w.l & 1) ? pw.b.h : pw.b.l;
+    m_a = data;
+}
+
+void upd1771c_device::TBL0_X(u16 op)    // 0001 100r rrrr 0001
+{
+    u8 r = (op >> 4) & 0x1f;
+    PAIR prr;
+    prr.b.l = m_r[r + 0];
+    prr.b.h = m_r[r + 1];
+    PAIR pw;
+    pw.d = m_program.read_word(prr.w.l >> 1);
+    u8 data = (prr.w.l & 1) ? pw.b.h : pw.b.l;
+    m_x = data & 0x7f;
+    m_ts = data & 0x80;
 }
 
 void upd1771c_device::JMP_n12(u16 op)   // 0110 nnnn nnnn nnnn
@@ -690,6 +771,26 @@ void upd1771c_device::TSBIC_Rr(u16 op)  // 1110 111r rrrr nnnn
     m_sk = tmp > 0xff;
 }
 
+void upd1771c_device::ADIMS_Rr(u16 op)  // 1111 001r rrrr nnnn
+{
+    u8 n = (op >> 0) & 0x0f;
+    u8 r = (op >> 4) & 0x1f;
+    u8 tmp;
+    if (m_md & MD_64_32)
+    {
+        tmp = (m_r[r] & 0x3f) + (n & 0x3f);   // Sum bits 0-5
+        m_sk = tmp > 0x3f;                    // Test if 6th carry C6
+        tmp = (tmp & 0x3f) | (m_r[r] & 0xc0); // Copy bits 6-7
+    }
+    else
+    {
+        tmp = (m_r[r] & 0x1f) + (n & 0x1f);   // Sum bits 0-4
+        m_sk = tmp > 0x1f;                    // Test if 5th carry C5
+        tmp = (tmp & 0x1f) | (m_r[r] & 0xe0); // Copy bits 5-7
+    }
+    m_r[r] = tmp;
+}
+
 void upd1771c_device::ADI_A(u16 op)     // 1000 0000 nnnn nnnn
 {
     u8 n = (op >> 0) & 0xff;
@@ -714,7 +815,7 @@ void upd1771c_device::SBI_A(u16 op)     // 1000 0100 nnnn nnnn
 void upd1771c_device::ORI_A(u16 op)     // 1000 0110 nnnn nnnn
 {
     u8 n = (op >> 0) & 0xff;
-    u16 tmp = m_a & n;
+    u16 tmp = m_a | n;
     m_a = tmp;
 }
 
@@ -829,7 +930,7 @@ void upd1771c_device::SBI_Hp(u16 op)    // 1010 0100 nnnn nnnn
 void upd1771c_device::ORI_Hp(u16 op)    // 1010 0110 nnnn nnnn
 {
     u8 n = (op >> 0) & 0xff;
-    u16 tmp = m_r[m_h] & n;
+    u16 tmp = m_r[m_h] | n;
     m_r[m_h] = tmp;
 }
 
@@ -944,7 +1045,7 @@ void upd1771c_device::SBI_H(u16 op)     // 1010 0101 nnnn nnnn
 void upd1771c_device::ORI_H(u16 op)     // 1010 0111 nnnn nnnn
 {
     u8 n = (op >> 0) & 0xff;
-    u16 tmp = m_h & n;
+    u16 tmp = m_h | n;
     m_h = tmp;
 }
 
@@ -1043,6 +1144,11 @@ void upd1771c_device::MOV_N_A(u16 op)   // 0000 0010 0000 0001
     m_n = m_a;
 }
 
+void upd1771c_device::MOV_X_A(u16 op)   // 0000 0010 0000 1000
+{
+    m_x = m_a & 0x7f;
+}
+
 void upd1771c_device::MOV_Hp_A(u16 op)  // 0001 0110 0000 0001
 {
     m_r[m_h] = m_a;
@@ -1072,7 +1178,7 @@ void upd1771c_device::SB_A_Rr(u16 op)   // 1100 010r rrrr 0000
 void upd1771c_device::OR_A_Rr(u16 op)   // 1100 011r rrrr 0000
 {
     u8 r = (op >> 4) & 0x1f;
-    u16 tmp = m_a & m_r[r];
+    u16 tmp = m_a | m_r[r];
     m_a = tmp;
 }
 
@@ -1187,7 +1293,7 @@ void upd1771c_device::SB_Rr_A(u16 op)   // 1100 010r rrrr 1000
 void upd1771c_device::OR_Rr_A(u16 op)   // 1100 011r rrrr 1000
 {
     u8 r = (op >> 4) & 0x1f;
-    u16 tmp = m_r[r] & m_a;
+    u16 tmp = m_r[r] | m_a;
     m_r[r] = tmp;
 }
 
@@ -1277,4 +1383,3 @@ void upd1771c_device::TSBZ_Rr_A(u16 op) // 1101 111r rrrr 1000
     u16 tmp = m_r[r] - m_a;
     m_sk = tmp == 0;
 }
-

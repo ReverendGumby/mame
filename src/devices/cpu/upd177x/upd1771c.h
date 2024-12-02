@@ -11,7 +11,8 @@ enum
 	UPD1771C_PC=1,
 };
 
-class upd1771c_device : public cpu_device
+class upd1771c_device : public cpu_device,
+						public device_sound_interface
 {
 public:
 	// construction/destruction
@@ -70,21 +71,26 @@ protected:
 	// device_disasm_interface overrides
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
 
+	// sound stream generation
+	virtual void sound_stream_update(sound_stream &stream, std::vector<read_stream_view> const &inputs, std::vector<write_stream_view> &outputs) override;
+
+	// built-in peripherals
 	void handle_timers(int cycles);
 	void take_irq();
 
-	devcb_read8       m_pb_in_cb;
 	devcb_write8      m_pb_out_cb;
 
+	// opcode map
 	void init_ops();
 	int op_cycles(u16 op);
-
 	typedef void (upd1771c_device::*opcode_func)(u16 op);
 	opcode_func m_op_funcs[65536];
 
+	// internal state
 	address_space_config m_program_config;
 	memory_view m_ram_view;
 
+	int m_cycles;						// cycles since reset
 	PAIR m_ppc;							// previous program counter
 	PAIR m_pc;							// program counter
 	u8 m_a;								// Accumulator (A)
@@ -102,10 +108,8 @@ protected:
 
 	u8 m_ma;							// port A input or output mask
 	u8 m_mb;							// port B input or output mask
-	u8 m_pa_in;							// port A,B inputs
-	u8 m_pb_in;
-	u8 m_pa_out;						// port A,B outputs
-	u8 m_pb_out;
+	u8 m_pa_io;							// port A,B in/out buffers
+	u8 m_pb_io;
 
 	// 64-byte internal SRAM. Supports both 8- and 16-bit accesses.
 	// Used for direct Rr access, indirect (H) access, and stack (PC).
@@ -119,11 +123,14 @@ protected:
 	bool m_int_tone_cond;				// tone int. condition
 	bool m_int_tone_trig;				// tone int. trigger
 
-	int m_cycles;						// TODO TEMP
 	u8 m_int_pending;					// pending interrupt requests
 	u8 m_int_active;					// active interrupt
 	u8 m_int_clr_active;				// clear active interrupt
 	u16 m_irq_vec;						// interrupt vector
+
+	sound_stream *m_stream;
+	u8 m_dac_pcm;						// DAC output level
+	bool m_dac_neg;						// invert DAC output (swing negative)
 
 	memory_access<12, 1, -1, ENDIANNESS_LITTLE>::cache m_opcodes;
 	memory_access<12, 1, -1, ENDIANNESS_LITTLE>::specific m_program;
@@ -138,12 +145,19 @@ protected:
 	void MVI_MD0(u16 op);
 	void MOV_Rr_A(u16 op);
 	void MOV_A_Rr(u16 op);
+	void MOV_Y_Rr(u16 op);
+	void MOV_X_RG(u16 op);
+	void RAR(u16 op);
+	void RAL(u16 op);
 	void IN_PA(u16 op);
 	void IN_PB(u16 op);
 	void OUT_PA(u16 op);
 	void OUT_PB(u16 op);
 	void OUT_DA(u16 op);
+	void MUL2(u16 op);
 	void MIX(u16 op);
+	void TBL0_A(u16 op);
+	void TBL0_X(u16 op);
 	void JMP_n12(u16 op);
 	void CALL(u16 op);
 	void RET(u16 op);
@@ -157,6 +171,7 @@ protected:
 	void TADIC_Rr(u16 op);
 	void TSBINC_Rr(u16 op);
 	void TSBIC_Rr(u16 op);
+	void ADIMS_Rr(u16 op);
 	void ADI_A(u16 op);
 	void ANDI_A(u16 op);
 	void SBI_A(u16 op);
@@ -206,6 +221,7 @@ protected:
 	void TSBIC_H(u16 op);
 	void TSBIZ_H(u16 op);
 	void MOV_N_A(u16 op);
+	void MOV_X_A(u16 op);
 	void MOV_Hp_A(u16 op);
 	void AD_A_Rr(u16 op);
 	void AND_A_Rr(u16 op);

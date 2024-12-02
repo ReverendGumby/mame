@@ -566,7 +566,7 @@ void scv_state::scv(machine_config &config)
         bool pb0 = data & (1 << 0);
         m_maincpu->set_input_line(UPD7810_INTF1, (pb0) ? ASSERT_LINE : CLEAR_LINE);
     });
-	//m_upd1771c->add_route(ALL_OUTPUTS, "mono", 1.00);
+	m_upd1771c->add_route(ALL_OUTPUTS, "mono", 1.00);
 
 	SCV_CART_SLOT(config, m_cart, scv_cart, nullptr);
 	m_cart->set_address_space(m_maincpu, AS_PROGRAM);
