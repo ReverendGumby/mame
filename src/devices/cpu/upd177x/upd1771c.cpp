@@ -7,11 +7,16 @@
  *
  *  This work is based on
  *  - @src/devices/sound/upd1771c_017.cpp
+ *  - https://oura.oguchi-rd.com - instruction reference
  *  - https://siliconpr0n.org/map/nec/d1771c-017/mcmaster_mz_mit20x/ - photomicrograph of D1771C-017 die
  *  - http://reverendgumby.gitlab.io/visuald1771c - JavaScript simulator derived from above die shot
  *  - https://gitlab.com/ReverendGumby/SuperCassetteVision_MiSTer/-/blob/main/rtl/scv/upd1771c/upd1771c.sv - Verilog emulation
  *
  *  This driver emulates 'slave' mode only.
+ *
+ *  TODO:
+ *  - Implement all opcodes (not just those used in -017 ROM)
+ *  - PNC1 (RG), PNC2 (NS), NS + Time int.
  *
  *****************************************************************************/
 /*
