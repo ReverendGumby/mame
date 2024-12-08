@@ -8,7 +8,8 @@
 
 enum
 {
-	UPD1771C_PC=1,
+	UPD1771C_PC=1, UPD1771C_A, UPD1771C_H, UPD1771C_SP, UPD1771C_X, UPD1771C_Y,
+    UPD1771C_MD, UPD1771C_N, UPD1771C_NC, UPD1771C_DA
 };
 
 class upd1771c_device : public cpu_device,
@@ -51,6 +52,7 @@ protected:
 
 	// internal memory maps
 	void internal_512x16(address_map &map) ATTR_COLD;
+	void internal_64x8(address_map &map) ATTR_COLD;
 
 	// device-level overrides
 	virtual void device_start() override ATTR_COLD;
@@ -67,6 +69,9 @@ protected:
 
 	// device_memory_interface overrides
 	virtual space_config_vector memory_space_config() const override;
+
+	// device_state_interface overrides
+	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
 	virtual std::unique_ptr<util::disasm_interface> create_disassembler() override;
@@ -86,10 +91,12 @@ protected:
 	typedef void (upd1771c_device::*opcode_func)(u16 op);
 	opcode_func m_op_funcs[65536];
 
-	// internal state
+	// address spacess
 	address_space_config m_program_config;
-	memory_view m_ram_view;
+	address_space_config m_sram_config;
+	required_shared_ptr<u8> m_r;
 
+    // internal state
 	int m_cycles;						// cycles since reset
 	PAIR m_ppc;							// previous program counter
 	PAIR m_pc;							// program counter
@@ -110,11 +117,6 @@ protected:
 	u8 m_mb;							// port B input or output mask
 	u8 m_pa_io;							// port A,B in/out buffers
 	u8 m_pb_io;
-
-	// 64-byte internal SRAM. Supports both 8- and 16-bit accesses.
-	// Used for direct Rr access, indirect (H) access, and stack (PC).
-    // 16-bit data is stored little-endian.
-	u8 m_r[64];							// SRAM
 
 	u8 m_nc;							// "NC": Down-counter
 	bool m_nc_uf;						// NC underflow

@@ -37,20 +37,31 @@ upd1771c_device::upd1771c_device(const machine_config &mconfig, device_type type
 	, device_sound_interface(mconfig, *this)
 	, m_pb_out_cb(*this)
 	, m_program_config("program", ENDIANNESS_LITTLE, 16, 12, -1, address_map_constructor(FUNC(upd1771c_device::internal_512x16), this))
-	, m_ram_view(*this, "ram_view")
+	, m_sram_config("sram", ENDIANNESS_LITTLE, 8, 6, 0, address_map_constructor(FUNC(upd1771c_device::internal_64x8), this))
+	, m_r(*this, "sram") // pointer to SRAM
     , m_stream(nullptr)
 {
 }
 
 void upd1771c_device::internal_512x16(address_map &map)
 {
+	// Internal 512-word program ROM.
     map(0x000, 0x1ff).rom();
+}
+
+void upd1771c_device::internal_64x8(address_map &map)
+{
+	// 64-byte internal SRAM. Supports both 8- and 16-bit accesses. Used for
+	// direct Rr access, indirect (H) access, and stack (PC). 16-bit data is
+	// stored little-endian.
+    map(0x000, 0x3f).ram().share("sram");
 }
 
 device_memory_interface::space_config_vector upd1771c_device::memory_space_config() const
 {
 	return space_config_vector {
-		std::make_pair(AS_PROGRAM, &m_program_config)
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA, &m_sram_config)
 	};
 }
 
@@ -131,11 +142,42 @@ void upd1771c_device::device_start()
 
 	set_icountptr(m_icount);
 
-	state_add(UPD1771C_PC,  "PC",   m_pc.w.l).formatstr("%04X");
-    // TODO: more state
+	state_add( UPD1771C_PC,  "PC",  m_pc.w.l ).formatstr("%03X");
+	state_add( UPD1771C_A,   "A",   m_a ).formatstr("%02X");
+	state_add( UPD1771C_H,   "H",   m_h ).formatstr("%02X");
+	state_add( UPD1771C_SP,  "SP",  m_sp ).formatstr("%1X");
+	state_add( UPD1771C_X,   "X",   m_x ).formatstr("%02X");
+	state_add( UPD1771C_Y,   "Y",   m_y ).formatstr("%02X");
+	state_add( UPD1771C_MD,  "MD",  m_md ).formatstr("%03X");
+	state_add( UPD1771C_N,   "N",   m_n ).formatstr("%02X");
+	state_add( UPD1771C_NC,  "NC",  m_nc ).formatstr("%02X");
+	state_add( UPD1771C_DA,  "DA",  m_dac_pcm ).formatstr("%9s");
+
+	state_add( STATE_GENPC, "GENPC", m_pc.w.l ).formatstr("%03X").noshow();
+	state_add( STATE_GENPCBASE, "CURPC", m_ppc.w.l ).formatstr("%03X").noshow();
+	state_add( STATE_GENFLAGS, "GENFLAGS", m_sk ).formatstr("%11s").noshow();
 
 	save_item(NAME(m_pc.w.l));
     // TODO: move save
+}
+
+void upd1771c_device::state_string_export(const device_state_entry &entry, std::string &str) const
+{
+	switch (entry.index())
+	{
+		case UPD1771C_DA:
+			str = string_format("%c%02X",
+				m_dac_neg ? '-' : '+',
+				m_dac_pcm);
+			break;
+		case STATE_GENFLAGS:
+			str = string_format("%s:%s:%s:%s",
+				m_sk ? "SK":"--",
+				m_ts ? "TS":"--",
+				m_ns ? "NS":"--",
+				m_ss ? "SS":"--");
+			break;
+	}
 }
 
 void upd1771c_device::device_reset()
@@ -516,7 +558,7 @@ int upd1771c_device::op_cycles(u16 op)
 
 void upd1771c_device::illegal(u16 op)
 {
-	logerror("illegal opcode %04x at PC:%04x\n", op, m_ppc.w.l);
+	logerror("illegal opcode %04x at PC:%03x\n", op, m_ppc.w.l);
 }
 
 void upd1771c_device::MVI_Rr(u16 op)    // 010r rrrr nnnn nnnn
