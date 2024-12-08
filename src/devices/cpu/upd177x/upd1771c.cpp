@@ -140,8 +140,6 @@ void upd1771c_device::device_start()
 	space(AS_PROGRAM).specific(m_program);
 	space(AS_PROGRAM).cache(m_opcodes);
 
-	set_icountptr(m_icount);
-
 	state_add( UPD1771C_PC,  "PC",  m_pc.w.l ).formatstr("%03X");
 	state_add( UPD1771C_A,   "A",   m_a ).formatstr("%02X");
 	state_add( UPD1771C_H,   "H",   m_h ).formatstr("%02X");
@@ -157,8 +155,42 @@ void upd1771c_device::device_start()
 	state_add( STATE_GENPCBASE, "CURPC", m_ppc.w.l ).formatstr("%03X").noshow();
 	state_add( STATE_GENFLAGS, "GENFLAGS", m_sk ).formatstr("%11s").noshow();
 
+	save_item(NAME(m_ppc.w.l));
 	save_item(NAME(m_pc.w.l));
-    // TODO: move save
+	save_item(NAME(m_a));
+	save_item(NAME(m_a_shadow));
+	save_item(NAME(m_h));
+	save_item(NAME(m_sp));
+	save_item(NAME(m_x));
+	save_item(NAME(m_y));
+	save_item(NAME(m_sk));
+	save_item(NAME(m_sk_shadow));
+	save_item(NAME(m_ts));
+	save_item(NAME(m_ns));
+	save_item(NAME(m_ss));
+	save_item(NAME(m_md));
+
+	save_item(NAME(m_ma));
+	save_item(NAME(m_mb));
+	save_item(NAME(m_pa_io));
+	save_item(NAME(m_pb_io));
+
+	save_item(NAME(m_nc));
+	save_item(NAME(m_nc_uf));
+	save_item(NAME(m_n));
+	save_item(NAME(m_nuc));
+	save_item(NAME(m_int_tone_cond));
+	save_item(NAME(m_int_tone_trig));
+
+	save_item(NAME(m_int_pending));
+	save_item(NAME(m_int_active));
+	save_item(NAME(m_int_clr_active));
+	save_item(NAME(m_irq_vec));
+
+	save_item(NAME(m_dac_pcm));
+	save_item(NAME(m_dac_neg));
+
+	set_icountptr(m_icount);
 }
 
 void upd1771c_device::state_string_export(const device_state_entry &entry, std::string &str) const
