@@ -70,10 +70,17 @@ std::unique_ptr<util::disasm_interface> upd1771c_device::create_disassembler()
 	return std::make_unique<upd177x_disassembler>();
 }
 
+// Emulate external reads and writes at a high level. Simpler than modelling
+// wiring CE/RD to PB6-7 and the data bus to PA.
+u8 upd1771c_device::pa_r()
+{
+	u8 data = m_pa_io;
+    //logerror("pa_r(): %02x\n", data);
+    return data;
+}
+
 void upd1771c_device::pa_w(u8 data)
 {
-    // Emulate external writes at a high level. Simpler than modelling wiring
-    // CE/RD to PB6-7 and the data bus to PA.
     //logerror("pa_w(%02x)\n", data);
     m_pa_io = data;
 }

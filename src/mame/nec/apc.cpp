@@ -61,7 +61,7 @@
 #include "machine/pit8253.h"
 #include "machine/upd1990a.h"
 #include "machine/upd765.h"
-#include "sound/upd1771c_017.h"
+#include "cpu/upd177x/upd1771c.h"
 #include "video/upd7220.h"
 #include "emupal.h"
 #include "screen.h"
@@ -92,7 +92,7 @@ public:
 		m_pit(*this, "pit8253"),
 		m_aux_pcg(*this, "aux_pcg"),
 		m_speaker(*this, "mono"),
-		m_sound(*this, "upd1771c_017"),
+		m_sound(*this, "upd1771c"),
 		m_video_ram_1(*this, "video_ram_1"),
 		m_video_ram_2(*this, "video_ram_2"),
 		m_screen(*this, "screen"),
@@ -123,7 +123,7 @@ private:
 	uint8_t *m_char_rom = nullptr;
 
 	required_device<speaker_device> m_speaker;
-	required_device<upd1771c_017_device> m_sound;
+	required_device<upd1771c_device> m_sound;
 
 	required_shared_ptr<uint16_t> m_video_ram_1;
 	required_shared_ptr<uint16_t> m_video_ram_2;
@@ -500,7 +500,7 @@ void apc_state::apc_io(address_map &map)
 //  0x5a  APU data (Arithmetic Processing Unit!)
 //  0x5b, Power Off
 //  0x5e  APU status/command
-	map(0x60, 0x60).rw(m_sound, FUNC(upd1771c_017_device::read), FUNC(upd1771c_017_device::write));
+	map(0x60, 0x60).rw(m_sound, FUNC(upd1771c_device::pa_r), FUNC(upd1771c_device::pa_w));
 //  map(0x68, 0x6f) i8255 , ODA printer port (A: status (R) B: data (W) C: command (W))
 //  map(0x70, 0x76).rw("upd7220_btm", FUNC(upd7220_device::read), FUNC(upd7220_device::write)).umask16(0x00ff);
 //  0x71, 0x77 IDA Controller
@@ -972,7 +972,7 @@ void apc_state::apc(machine_config &config)
 
 	/* sound hardware */
 	SPEAKER(config, m_speaker).front_center();
-	UPD1771C_017(config, m_sound, MAIN_CLOCK).add_route(ALL_OUTPUTS, "mono", 1.00); //uPD1771C-006
+	UPD1771C(config, m_sound, MAIN_CLOCK).add_route(ALL_OUTPUTS, "mono", 1.00);
 }
 
 
@@ -992,6 +992,10 @@ ROM_START( apc )
 
 	ROM_REGION( 0x2000, "gfx", ROMREGION_ERASE00 )
 	ROM_LOAD("pfcu1r.bin",   0x000000, 0x002000, CRC(683efa94) SHA1(43157984a1746b2e448f3236f571011af9a3aa73) )
+
+	ROM_REGION (0x400, "upd1771c", 0 )
+// TODO: Load uPD1771C-006 ROM
+//	ROM_LOAD( "upd1771c-006.bin", 0, 0x400, CRC(xxxxxxxx) SHA1(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx) )
 ROM_END
 
 void apc_state::init_apc()

@@ -22,6 +22,7 @@ public:
 	// configuration helpers
 	auto pb_out_cb() { return m_pb_out_cb.bind(); }
 
+	u8 pa_r();
 	void pa_w(u8 data);
 
 protected:
