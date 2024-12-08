@@ -285,6 +285,7 @@ u16 upd1771c_device::take_irq()
 {
     // Clear active interrupt in the cycle after RETI.
     m_int_active &= ~m_int_clr_active;
+    m_int_clr_active = 0;
 
     if (!m_int_pending)
         return 0;						// no pending interrupt
