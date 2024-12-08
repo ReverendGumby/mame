@@ -604,8 +604,6 @@ void upd1771c_device::OUT_PA(u16 op)    // 0000 0000 0000 0010
     u8 data = m_a;
     //logerror("OUT_PA(%02x)\n", data);
     m_pa_io = data;
-    //data = (data & ~m_ma) | m_ma;
-    //m_pa_out_cb(data);
 }
 
 void upd1771c_device::OUT_PB(u16 op)    // 0000 0000 0000 0100
