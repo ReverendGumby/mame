@@ -81,11 +81,11 @@ protected:
 
 	// built-in peripherals
 	void handle_timers(int cycles);
-	void take_irq();
 
 	devcb_write8      m_pb_out_cb;
 
-	// opcode map
+	// opcode map and execution
+	u16 take_irq();
 	void init_ops();
 	int op_cycles(u16 op);
 	typedef void (upd1771c_device::*opcode_func)(u16 op);
@@ -128,7 +128,6 @@ protected:
 	u8 m_int_pending;					// pending interrupt requests
 	u8 m_int_active;					// active interrupt
 	u8 m_int_clr_active;				// clear active interrupt
-	u16 m_irq_vec;						// interrupt vector
 
 	sound_stream *m_stream;
 	u8 m_dac_pcm;						// DAC output level

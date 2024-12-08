@@ -185,7 +185,6 @@ void upd1771c_device::device_start()
 	save_item(NAME(m_int_pending));
 	save_item(NAME(m_int_active));
 	save_item(NAME(m_int_clr_active));
-	save_item(NAME(m_irq_vec));
 
 	save_item(NAME(m_dac_pcm));
 	save_item(NAME(m_dac_neg));
@@ -236,7 +235,6 @@ void upd1771c_device::device_reset()
     m_int_pending = 0;
     m_int_active = 0;
     m_int_clr_active = 0;
-    m_irq_vec = 0;
 
     m_dac_pcm = 0;
     m_dac_neg = false;
@@ -246,7 +244,7 @@ void upd1771c_device::execute_run()
 {
     do
     {
-		take_irq();
+		u16 irq_vec = take_irq();
 
 		m_ppc = m_pc;
 		debugger_instruction_hook(m_pc.w.l);
@@ -254,10 +252,10 @@ void upd1771c_device::execute_run()
         u16 op = m_opcodes.read_word(m_pc.w.l);
         m_pc.d ++;
 
-        if (m_irq_vec)
+        if (irq_vec)
         {
-            op = 0x7000 | m_irq_vec;  // CALL opcode
-            m_irq_vec = 0;
+            op = 0x7000 | irq_vec;		// CALL opcode
+            irq_vec = 0;
             m_sk = false;
             m_pc.d --;                  // RETI to the ins. replaced by CALL
         }
@@ -276,13 +274,13 @@ void upd1771c_device::execute_run()
 	} while (m_icount > 0);
 }
 
-void upd1771c_device::take_irq()
+u16 upd1771c_device::take_irq()
 {
     // Clear active interrupt in the cycle after RETI.
     m_int_active &= ~m_int_clr_active;
 
     if (!m_int_pending)
-        return;                         // no pending interrupt
+        return 0;						// no pending interrupt
 
     // Select highest priority pending interrupt, make it active
     if (m_int_pending & INT_TONE)
@@ -296,25 +294,26 @@ void upd1771c_device::take_irq()
     m_int_pending &= ~m_int_active;     // clear pending request
 
     // Compute interrupt vector
+	u16 irq_vec = 0;
     switch (m_int_active)
     {
     case INT_TONE:
-        m_irq_vec = 0x20;
+        irq_vec = 0x20;
         if (m_n >= 0x10 && m_n < 0x20)
-            m_irq_vec |= 0x04;
+            irq_vec |= 0x04;
         if (m_n >= 0x20 && m_n < 0x40)
-            m_irq_vec |= 0x08;
+            irq_vec |= 0x08;
         if (m_n >= 0x40)
-            m_irq_vec |= 0x0c;
+            irq_vec |= 0x0c;
         break;
     case INT_NS:
-        m_irq_vec = 0x48;
+        irq_vec = 0x48;
         break;
     case INT_EXT:
-        m_irq_vec = 0x60;
+        irq_vec = 0x60;
         break;
     case INT_TIME:
-        m_irq_vec = 0x80;
+        irq_vec = 0x80;
         break;
     }
 
@@ -324,6 +323,7 @@ void upd1771c_device::take_irq()
 
     // The next instruction is still fetched, but effectively replaced with a
     // CALL to the interrupt vector.
+	return irq_vec;
 }
 
 /***********************************************************************
